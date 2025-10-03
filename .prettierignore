@@ -1,0 +1,28 @@
+# Node modules and build outputs
+node_modules
+dist
+build
+coverage
+
+# Environment files
+.env
+*.env
+
+# Package lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Configs you don’t want formatted
+*.config.js
+
+# Logs
+*.log
+
+# Public/static assets
+public/*
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif
