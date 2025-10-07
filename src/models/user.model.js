@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt"
+
 const userSchema = new Schema({
     username:{
         type:String,
@@ -18,11 +19,10 @@ const userSchema = new Schema({
         type:String,
         required:true,
         lowercase:true,
-        unique:true,
         trim:true,
         index:true
     },
-    avatar:{
+    avater:{
         type:String,//FIXME: cloudinary image
         required:true 
     },
@@ -41,7 +41,6 @@ const userSchema = new Schema({
     ],
     refreshToken:{
         type:String,
-        required:true
     }
 },{timestamps:true});
 
