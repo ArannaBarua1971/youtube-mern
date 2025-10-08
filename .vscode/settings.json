@@ -1,0 +1,22 @@
+{
+    "todohighlight.include": [
+
+        "**/*.js",
+        "**/*.jsx",
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.html",
+        "**/*.php",
+        "**/*.css",
+        "**/*.scss"
+    ],
+    "todohighlight.keywords": [
+        
+        {
+            "text": "NOT_UNDERSTAND:",
+            "color": "black",
+            "backgroundColor": "#8cff32",
+            "overviewRulerColor": "grey"
+        }
+    ]
+}
