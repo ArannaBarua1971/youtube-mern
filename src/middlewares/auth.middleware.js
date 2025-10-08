@@ -5,9 +5,9 @@ import jwt from "jsonwebtoken";
 
 export const validedAuth = asyncHandler(async (req, _, next) => {
   const accessToken =
-    req.cookie?.accessToken ||
+    req.cookies?.AccessToken ||
     req.header("Authorization")?.replace("Bearer ", "");
-
+  console.log(accessToken);
   if (!accessToken) {
     throw new ApiError(401, "Unauthorized User");
   }

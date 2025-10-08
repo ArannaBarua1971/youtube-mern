@@ -4,7 +4,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import fs from "fs";
-
 const getAccessAndRefreshToken = async (id) => {
   try {
     const user = await User.findById(id);
@@ -33,6 +32,11 @@ const registerUser = asyncHandler(async (req, res) => {
   // give response without password and refresh token
 
   const { username, email, fullName, password } = req.body;
+  const avaterLocalPath = req.files?.avater[0]?.path;
+  let coverImageLocalPath;
+  if (req.files.coverImage) {
+    coverImageLocalPath = req.files?.coverImage[0]?.path;
+  }
 
   if (
     // check empty field empty or not
@@ -46,11 +50,12 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (existedUser) {
+    fs.unlinkSync(avaterLocalPath);
+    fs.unlinkSync(coverImageLocalPath);
     // check registered user is existed or not
     throw new ApiError(409, "User already existed");
   }
 
-  const avaterLocalPath = req.files?.avater[0]?.path;
   if (!avaterLocalPath) {
     //check avater
     throw new ApiError(400, "Avater file is required");
@@ -64,7 +69,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   let coverImage = "";
   if (req.files.coverImage) {
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
     coverImage = await uploadOnCloudinary(coverImageLocalPath);
   }
 
@@ -102,7 +106,7 @@ const loginUser = asyncHandler(async (req, res) => {
   // create access and refresh token
 
   const { username, email, password } = req.body;
-  if ((!username || !email) && !password) {
+  if (!(username || email) || !password) {
     throw new ApiError(400, "All feilds required");
   }
 
@@ -121,8 +125,13 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   //generate access and refresh token
-  const { AccessToken, RefreshToken } =await getAccessAndRefreshToken(user._id);
+  const { AccessToken, RefreshToken } = await getAccessAndRefreshToken(
+    user._id
+  );
 
+  const loggedUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
   const options = {
     httpOnly: true,
     scure: true,
@@ -135,7 +144,7 @@ const loginUser = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         {
-          user: { user, AccessToken, RefreshToken },
+          user: { loggedUser, AccessToken, RefreshToken },
         },
         "user successfully logged in"
       )
