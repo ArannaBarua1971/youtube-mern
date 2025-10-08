@@ -17,6 +17,10 @@ export const validedAuth = asyncHandler(async (req, _, next) => {
     process.env.JWT_ACCESS_SECRET_KEY
   );
 
+  if(!decodeToken){
+    //TODO:
+    throw new ApiError(401,"Unauthorized User")
+  }
   // check user existed or not
   const user = await User.findById(decodeToken?._id).select(
     "-password -refreshToken"
