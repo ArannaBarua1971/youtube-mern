@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getCurrentUser,
+  getUserChannel,
   loginUser,
   logoutUser,
   refreshAccessToken,
@@ -34,6 +35,7 @@ router.route("/update-password").post(validedAuth, getCurrentUser);
 router.route("/update-AccountInfo").post(validedAuth, updateAccountInfo);
 router.route("/update-avater").post(validedAuth,upload.single("avatar"), updateAvatar);
 router.route("/update-coverImage").post(validedAuth,upload.single("coverImage"), updateCoverImage);
+router.route("/getUserChannelInfo/:username").post(validedAuth, getUserChannel);
 router.route("/refresh-token").post(refreshAccessToken);
 
 export default router;

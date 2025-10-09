@@ -5,6 +5,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import fs from "fs";
 import jwt from "jsonwebtoken";
+import { Mongoose } from "mongoose";
 const getAccessAndRefreshToken = async (id) => {
   try {
     const user = await User.findById(id);
@@ -285,16 +286,19 @@ const updateAvatar = asyncHandler(async (req, res) => {
   }
 
   const avatar = await uploadOnCloudinary(avatarLocalpath);
-  if(!avatar){
-    throw new ApiError(400,"Faild to upload avater in coludinary")
+  if (!avatar) {
+    throw new ApiError(400, "Faild to upload avater in coludinary");
   }
 
   const user = await User.findByIdAndUpdate(req.user?._id, {
-    $set: { avatar:avatar.url },
+    $set: { avatar: avatar.url },
   });
 
-  return res.status(200).json(new ApiResponse(200,avatar.url,"avatar updated successfully"))
+  return res
+    .status(200)
+    .json(new ApiResponse(200, avatar.url, "avatar updated successfully"));
 });
+
 const updateCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalpath = req.file?.path;
 
@@ -303,15 +307,79 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   }
 
   const coverImage = await uploadOnCloudinary(coverImageLocalpath);
-  if(!coverImage){
-    throw new ApiError(400,"Faild to upload avater in coludinary")
+  if (!coverImage) {
+    throw new ApiError(400, "Faild to upload avater in coludinary");
   }
 
   const user = await User.findByIdAndUpdate(req.user?._id, {
-    $set: { coverImage:coverImage.url },
+    $set: { coverImage: coverImage.url },
   });
 
-  return res.status(200).json(new ApiResponse(200,coverImage.url,"avatar updated successfully"))
+  return res
+    .status(200)
+    .json(new ApiResponse(200, coverImage.url, "avatar updated successfully"));
+});
+
+const getUserChannel = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username) {
+    throw new ApiError(400, "user name is not given");
+  }
+
+
+  const user=await User.find({username})
+
+  const resData = await User.aggregate([
+    { $match: { _id: user[0]?._id} },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribeTo",
+      },
+    },
+    {
+      $addFields: {
+        subscriberCount: {
+          $size: "$subscribers",
+        },
+        subscribeToCount: {
+          $size: "$subscribeTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscriberCount: 1,
+        subscribeToCount: 1,
+        isSubscribed: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, resData[0], "User channel info get successfully"));
 });
 
 export {
@@ -323,5 +391,6 @@ export {
   updatePassword,
   updateAccountInfo,
   updateAvatar,
-  updateCoverImage
+  updateCoverImage,
+  getUserChannel,
 };
