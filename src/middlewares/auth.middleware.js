@@ -18,7 +18,6 @@ export const validedAuth = asyncHandler(async (req, _, next) => {
   );
 
   if(!decodeToken){
-    //TODO:
     throw new ApiError(401,"Unauthorized User")
   }
   // check user existed or not
