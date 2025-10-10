@@ -320,18 +320,17 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, coverImage.url, "avatar updated successfully"));
 });
 
-const getUserChannel = asyncHandler(async (req, res) => {
+const getUserChannelInfo = asyncHandler(async (req, res) => {
   const { username } = req.params;
 
   if (!username) {
     throw new ApiError(400, "user name is not given");
   }
 
-
-  const user=await User.find({username})
+  const user = await User.find({ username });
 
   const resData = await User.aggregate([
-    { $match: { _id: user[0]?._id} },
+    { $match: { _id: user[0]?._id } },
     {
       $lookup: {
         from: "subscriptions",
@@ -358,7 +357,7 @@ const getUserChannel = asyncHandler(async (req, res) => {
         },
         isSubscribed: {
           $cond: {
-            if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
             then: true,
             else: false,
           },
@@ -373,13 +372,66 @@ const getUserChannel = asyncHandler(async (req, res) => {
         subscribeToCount: 1,
         isSubscribed: 1,
         email: 1,
+        avatar: 1,
+        coverImage: 1,
       },
     },
   ]);
 
   return res
     .status(200)
-    .json(new ApiResponse(200, resData[0], "User channel info get successfully"));
+    .json(
+      new ApiResponse(200, resData[0], "User channel info get successfully")
+    );
+});
+
+const getUserWatchHistory = asyncHandler(async (req, res) => {
+  const resData = await User.aggregate([
+    {
+      $match: {
+        _id: req.user._id,
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    userName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields:{
+              owner:"$owner[0]"
+            }
+          }
+        ],
+      },
+    },
+    {
+      $project:{
+        watchHistory:1
+      }
+    }
+  ]);
+
+  return res.status(200).json(new ApiResponse(200,resData[0],"watch history get successfully"))
 });
 
 export {
@@ -392,5 +444,6 @@ export {
   updateAccountInfo,
   updateAvatar,
   updateCoverImage,
-  getUserChannel,
+  getUserChannelInfo,
+  getUserWatchHistory
 };
