@@ -37,9 +37,18 @@ const getVideoComments = asyncHandler(async (req, res) => {
       $addFields:{
         owner:"$owner[0]"
       }
+    },
+    {
+      $skip:skipComment
+    },
+    {
+      $limit:Number(limit)
     }
-  ]).skip(skipComment).limit(Number(limit))
+  ])
 
+  if(!videoComments){
+    throw new ApiError(500,"faild to get video comments")
+  }
   const totalComment = await Comment.countDocuments({ video: videoId });
 
   return res
@@ -93,6 +102,9 @@ const updateComment = asyncHandler(async (req, res) => {
     { $new: true }
   );
 
+  if(!updateComment){
+    throw new ApiError(500,"falied to update this comment")
+  }
   return res
     .status(200)
     .json(new ApiResponse(200, updateComment, "cmment is updated"));
@@ -102,6 +114,9 @@ const deleteComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
 
   const comment = await Comment.findById(commentId);
+  if(!comment){
+    throw new ApiError(500,"comment not found")
+  }
 
   if (comment.owner !== req.user._id) {
     throw new ApiError(400, "you unable to delete this comment");
