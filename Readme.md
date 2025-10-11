@@ -1,7 +1,7 @@
 #youtube mern project
 
 data model link
-->[model link](https://app.eraser.io/workspace/YtPqZ1VogxGy1jzIDkzj)
+->[model link]( )
 
 
 //access and refresh token details
