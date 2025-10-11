@@ -285,6 +285,7 @@ const updateAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar field required");
   }
 
+  //TODO: delete file from cloudinary
   const avatar = await uploadOnCloudinary(avatarLocalpath);
   if (!avatar) {
     throw new ApiError(400, "Faild to upload avater in coludinary");

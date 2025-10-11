@@ -31,13 +31,13 @@ router.route("/login").post(loginUser);
 
 //secure routes
 router.route("/logout").post(validedAuth, logoutUser);
-router.route("/current-user").post(validedAuth, getCurrentUser);
-router.route("/update-password").post(validedAuth, getCurrentUser);
-router.route("/update-AccountInfo").post(validedAuth, updateAccountInfo);
-router.route("/update-avater").post(validedAuth,upload.single("avatar"), updateAvatar);
-router.route("/update-coverImage").post(validedAuth,upload.single("coverImage"), updateCoverImage);
-router.route("/c/:username").post(validedAuth, getUserChannelInfo);
-router.route("/history").post(validedAuth, getUserWatchHistory);
-router.route("/refresh-token").post(refreshAccessToken);
+router.route("/current-user").get(validedAuth, getCurrentUser);
+router.route("/update-password").patch(validedAuth, getCurrentUser);
+router.route("/update-AccountInfo").patch(validedAuth, updateAccountInfo);
+router.route("/update-avater").patch(validedAuth,upload.single("avatar"), updateAvatar);
+router.route("/update-coverImage").patch(validedAuth,upload.single("coverImage"), updateCoverImage);
+router.route("/c/:username").get(validedAuth, getUserChannelInfo);
+router.route("/history").get(validedAuth, getUserWatchHistory);
+router.route("/refresh-token").get(refreshAccessToken);
 
 export default router;
