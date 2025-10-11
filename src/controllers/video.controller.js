@@ -116,10 +116,52 @@ const getAllVideos = asyncHandler(async (req, res) => {
     sortQurey = { sortBy: sortType === "asc" ? 1 : -1 };
   }
 
-  const videoData = await Video.find(filter)
-    .sort(sortQurey)
-    .skip(skipVideo)
-    .limit(Number(limit));
+
+  const videoData=await Video.aggregate([
+    {
+      $match: filter
+    },
+    {
+      $lookup:{
+        from:"users",
+        localField:"owner",
+        foreignField:"_id",
+        as:"owner",
+        pipeline:[
+          {
+            $project:{
+              avatar:1,
+              username:1,
+              fullName:1
+            }
+          }
+        ]
+      }
+    },
+    {
+      $addFields:{
+        owner:"$owner[0]"
+      }
+    }
+    ,
+    {
+      $project:{
+        owner:1,
+        videoFile:1,
+        thumbnail:1,
+        title:1
+      }
+    },
+    {
+      $sort:sortQurey
+    },
+    {
+      $skip:skipVideo
+    },
+    {
+      $limit:Number(limit)
+    }
+  ])
 
   const totalVideo = await Video.countDocuments(filter);
 
@@ -177,7 +219,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
-  const videoId = req.params;
+  const { videoId } = req.params;
 
   //check video owner update video or not
   const video = await Video.findById(videoId);
@@ -213,7 +255,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
-  const videoId = req.params;
+  const {videoId} = req.params;
 
   //check video owner delete video or not
   const video = await Video.findById(videoId);
@@ -242,7 +284,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
-  const videoId = req.params;
+  const {videoId} = req.params;
 
   //check video owner delete video or not
   const video = await Video.findById(videoId);
