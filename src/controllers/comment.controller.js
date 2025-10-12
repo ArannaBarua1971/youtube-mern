@@ -57,7 +57,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
       new ApiResponse(200, {
         currentPage: 1,
         totalPages: Math.ceil(totalComment / Number(limit)),
-        videoComments
+        comment:videoComments[0]
       })
     );
 });

@@ -146,6 +146,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     ,
     {
       $project:{
+        _id:1,
         owner:1,
         videoFile:1,
         thumbnail:1,
@@ -171,7 +172,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         {
-          videoData,
+          video:videoData[0],
           currentPage: Number(page),
           totalPages: Math.ceil(totalVideo / Number(limit)),
         },
