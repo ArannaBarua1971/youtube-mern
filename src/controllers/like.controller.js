@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
+import { Tweet } from "../models/tweet.model.js";
 
 const toggleVideoLike = asyncHandler(async (req, res) => {
   const { videoId } = req.query;
@@ -88,13 +89,18 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
 const toggleTweetLike = asyncHandler(async (req, res) => {
   const { tweetId } = req.query;
 
+  //check tweet exist or not
+  const tweet=await Tweet.findById(new mongoose.Types.ObjectId(tweetId))
+  if(!tweet){
+    throw new ApiError(404,"tweet not found")
+  }
   const tweetLike = await Like.find({
     tweet: new mongoose.Types.ObjectId(tweetId),
     likedBy: req.user._id,
   });
 
-  if (tweetLike) {
-    const dislike = await Like.findByIdAndDelete(tweetLike._id);
+  if (tweetLike?.length) {
+    const dislike = await Like.findByIdAndDelete(tweetLike[0]._id);
     if (!dislike) {
       throw new ApiError(500, "failed to dislike this tweet");
     }
