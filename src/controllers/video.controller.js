@@ -1,15 +1,21 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { Video } from "../models/video.model.js";
+import { Comment } from "../models/comment.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import mongoose from "mongoose";
+import { v2 as cloudinary } from "cloudinary";
+import { Like } from "../models/like.model.js";
 
-const deleteOnCloudinary = async (id) => {
-  await cloudinary.v2.api
-    .delete_resources(id)
-    .then((result) => true)
-    .catch((err) => false);
+const deleteOnCloudinary = async (files) => {//FIXME: it is not working
+  const deleteFile = await cloudinary.api.delete_resources(files);
+
+  if (!deleteFile) {
+    throw new ApiError(500, "failed to delete file in cloudinary");
+  }
+  return true;
 };
 
 const getVideoById = asyncHandler(async (req, res) => {
@@ -19,23 +25,29 @@ const getVideoById = asyncHandler(async (req, res) => {
     throw new ApiError(404, "video not found");
   }
 
+  //check video published or not
+  const video = await Video.findById(new mongoose.Types.ObjectId(videoId));
+  if (!video.isPublished && !video.owner.equals(req.user._id)) {
+    throw new ApiError(404, "video not found anymore");
+  }
+
   //delete old one
   await User.findByIdAndUpdate(req.user._id, {
     $pull: {
-      watchHistory: videoId,
+      watchHistory: new mongoose.Types.ObjectId(videoId),
     },
   });
   //update new one
   await User.findByIdAndUpdate(req.user._id, {
     $push: {
-      watchHistory: videoId,
+      watchHistory: new mongoose.Types.ObjectId(videoId),
     },
   });
 
   const resData = await Video.aggregate([
     {
       $match: {
-        _id: videoId,
+        _id: new mongoose.Types.ObjectId(videoId),
       },
     },
     {
@@ -46,12 +58,6 @@ const getVideoById = asyncHandler(async (req, res) => {
         as: "owner",
         pipeline: [
           {
-            $project: {
-              fullName: 1,
-              avatar: 1,
-            },
-          },
-          {
             $lookup: {
               from: "subscriptions",
               localField: "_id",
@@ -59,17 +65,41 @@ const getVideoById = asyncHandler(async (req, res) => {
               as: "subscribers",
             },
           },
+          {
+            $addFields: {
+              subscribers: {
+                $size: "$subscribers",
+              },
+            },
+          },
+          {
+            $project: {
+              fullName: 1,
+              avatar: 1,
+              username: 1,
+              subscribers: 1,
+            },
+          },
         ],
       },
     },
     {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "video",
+        as: "videolikes",
+      },
+    },
+    {
       $addFields: {
-        owner: "$owner[0]",
+        videoLikes: { $size: "$videolikes" },
+        owner: { $arrayElemAt: ["$owner", 0] },
         isSubscribed: {
           $cond: {
-            $if: { $in: [req.user._id, "$subscribers.subscriber"] },
-            $then: true,
-            $else: false,
+            if: { $in: [req.user._id, "$owner.subscribers.subscriber"] },
+            then: true,
+            else: false,
           },
         },
       },
@@ -77,13 +107,14 @@ const getVideoById = asyncHandler(async (req, res) => {
     {
       $project: {
         videoFile: 1,
-        Thumbnail: 1,
+        thumbnail: 1,
         owner: 1,
         title: 1,
         description: 1,
         duration: 1,
         views: 1,
         isSubscribed: 1,
+        videoLikes: 1,
       },
     },
   ]);
@@ -96,12 +127,12 @@ const getVideoById = asyncHandler(async (req, res) => {
 const getAllVideos = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
 
-  let filter = {};
-  let sortQurey;
+  let filter = { isPublished: true };
+  let sortQurey = {};
   const skipVideo = (Number(page) - 1) * Number(limit);
   //get specific user video
   if (userId) {
-    filter.owner = userId;
+    filter.owner = new mongoose.Types.ObjectId(userId);
   }
 
   //if given query
@@ -116,68 +147,63 @@ const getAllVideos = asyncHandler(async (req, res) => {
     sortQurey = { sortBy: sortType === "asc" ? 1 : -1 };
   }
 
-
-  const videoData=await Video.aggregate([
+  const videoData = await Video.aggregate([
     {
-      $match: filter
+      $match: filter,
     },
     {
-      $lookup:{
-        from:"users",
-        localField:"owner",
-        foreignField:"_id",
-        as:"owner",
-        pipeline:[
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
           {
-            $project:{
-              avatar:1,
-              username:1,
-              fullName:1
-            }
-          }
-        ]
-      }
+            $project: {
+              avatar: 1,
+              username: 1,
+              fullName: 1,
+            },
+          },
+        ],
+      },
     },
     {
-      $addFields:{
-        owner:"$owner[0]"
-      }
-    }
-    ,
-    {
-      $project:{
-        _id:1,
-        owner:1,
-        videoFile:1,
-        thumbnail:1,
-        title:1
-      }
+      $addFields: {
+        owner: { $arrayElemAt: ["$owner", 0] },
+      },
     },
     {
-      $sort:sortQurey
+      $project: {
+        _id: 1,
+        owner: 1,
+        videoFile: 1,
+        thumbnail: 1,
+        title: 1,
+      },
     },
     {
-      $skip:skipVideo
+      $sort: sortQurey,
     },
     {
-      $limit:Number(limit)
-    }
-  ])
+      $skip: skipVideo,
+    },
+    {
+      $limit: Number(limit),
+    },
+  ]);
 
   const totalVideo = await Video.countDocuments(filter);
 
-  return (
-    res.status(200),
-    json(
-      new ApiResponse(
-        200,
-        {
-          video:videoData[0],
-          currentPage: Number(page),
-          totalPages: Math.ceil(totalVideo / Number(limit)),
-        },
-        "video get succesfully"
-      )
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        video: videoData,
+        currentPage: Number(page),
+        totalPages: Math.ceil(totalVideo / Number(limit)),
+      },
+      "video get succesfully"
     )
   );
 });
@@ -200,16 +226,15 @@ const publishAVideo = asyncHandler(async (req, res) => {
   const videoFile = await uploadOnCloudinary(videoLocalPath);
   const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
   if (!videoFile || !thumbnail) {
-    throw new ApiError(50, "video and thumbnail file not able upload");
+    throw new ApiError(500, "video and thumbnail file not able upload");
   }
-
   const uploadVideo = await Video.create({
     title,
     description,
     videoFile: videoFile.url,
     thumbnail: thumbnail.url,
     owner: req.user._id,
-    duration: thumbnail.duration,
+    duration: videoFile.duration,
   });
   if (!uploadVideo) {
     throw new ApiError(500, "video not avail to publish");
@@ -220,17 +245,16 @@ const publishAVideo = asyncHandler(async (req, res) => {
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
-  const { videoId } = req.params;
-
+  const { videoId } = req.query;
   //check video owner update video or not
-  const video = await Video.findById(videoId);
-  if (video.owner !== req.user._id) {
+  const video = await Video.findById(new mongoose.Types.ObjectId(videoId));
+  if (!video.owner.equals(req.user._id)) {
     throw new ApiError(400, "you are not able to update this video");
   }
 
   //delete video on cloudinary
   const deleteVideoOnCloudianry = await deleteOnCloudinary([video.videoFile]);
-  if (!deleteOnCloudinary) {
+  if (!deleteVideoOnCloudianry) {
     throw new ApiError(500, "failed to delete file from cloudianry");
   }
 
@@ -256,11 +280,14 @@ const updateVideo = asyncHandler(async (req, res) => {
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
-  const {videoId} = req.params;
+  const { videoId } = req.query;
 
   //check video owner delete video or not
-  const video = await Video.findById(videoId);
-  if (video.owner !== req.user._id) {
+  const video = await Video.findById(new mongoose.Types.ObjectId(videoId));
+  if (!video) {
+    throw new ApiError(404, "video not found");
+  }
+  if (!video.owner.equals(req.user._id)) {
     throw new ApiError(400, "you are not able to delete this video");
   }
 
@@ -269,14 +296,41 @@ const deleteVideo = asyncHandler(async (req, res) => {
     video.videoFile,
     video.thumbnail,
   ]);
-  if (!deleteOnCloudinary) {
+  if (!deleteVideoOnCloudianry) {
     throw new ApiError(500, "failed to delete file from cloudianry");
   }
 
   //delete video from database
-  const deleteVideo = await Video.deleteOne({ _id: videoId });
+  const deleteVideo = await Video.deleteOne({
+    _id: new mongoose.Types.ObjectId(videoId),
+  });
   if (!deleteVideo) {
     throw new ApiError(400, "unable to delete video");
+  }
+
+
+  //delete video related comments
+  const deleteComment = await Comment.deleteMany({
+    video: new mongoose.Types.ObjectId(videoId),
+  });
+
+  if (!deleteComment) {
+    throw new ApiError(400, "unable to delete video comment");
+  }
+
+    // 1️⃣ Find all comments of this video
+  const comments = await Comment.find({
+    video: new mongoose.Types.ObjectId(videoId),
+  });
+  const commentIds = comments.map((c) => c._id);
+
+  // 2️⃣ Delete all likes related to these comments
+  const deleteCommentLikes = await Like.deleteMany({
+    comment: { $in: commentIds },
+  });
+
+  if (!deleteCommentLikes) {
+    throw new ApiError(400, "unable to delete video comment likes");
   }
 
   return res
@@ -285,20 +339,20 @@ const deleteVideo = asyncHandler(async (req, res) => {
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
-  const {videoId} = req.params;
+  const { videoId } = req.query;
 
   //check video owner delete video or not
-  const video = await Video.findById(videoId);
-  if (video.owner !== req.user._id) {
+  const video = await Video.findById(new mongoose.Types.ObjectId(videoId));
+  if (!video.owner.equals(req.user._id)) {
     throw new ApiError(400, "you are not able to toggle this video status");
   }
 
-  video.isPublised = !video.isPublised;
+  video.isPublished = !video.isPublished;
   await video.save();
 
   return res
     .status(200)
-    .json(new ApiResponse(200, video.isPublised, "status of video is updated"));
+    .json(new ApiResponse(200, video.isPublished, "status of video is updated"));
 });
 
 export {

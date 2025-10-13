@@ -15,17 +15,17 @@ const router = Router();
 router.use(validedAuth);
 
 //secure video router
-router.route("/v/:id").get(getVideoById);
-router.route("/all").get(getAllVideos);
-router.route("/updateVideo/:id").patch(updateVideo);
-router.route("/deleteVideo/:id").patch(deleteVideo);
-router.route("/toggleStatus/:id").patch(togglePublishStatus);
+router.route("/v/:id").get(getVideoById);//✅
+router.route("/allVideos").get(getAllVideos);//✅
+router.route("/updateVideo").patch(upload.single("videoFile"),updateVideo);//✅
+router.route("/deleteVideo").patch(deleteVideo);//✅
+router.route("/toggleStatus").patch(togglePublishStatus);//✅
 router.route("/publishVideo").post(
   upload.fields([
     { name: "videoFile", maxCount: 1 },
     { name: "thumbnail", maxCount: 1 },
   ]),
   publishAVideo
-);
+);//✅
 
 export default router;
