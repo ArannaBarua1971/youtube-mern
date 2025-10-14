@@ -227,9 +227,16 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
+
+  const resData={
+    _id:req.user._id,
+    username:req.user.username,
+    fullName:req.user.fullName,
+    avatar:req.user.avatar
+  }
   return res
     .status(200)
-    .json(new ApiResponse(200, req?.user, "current user get successfully"));
+    .json(new ApiResponse(200, resData, "current user get successfully"));
 });
 
 const updatePassword = asyncHandler(async (req, res) => {
@@ -400,32 +407,38 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
         localField: "watchHistory",
         foreignField: "_id",
         as: "watchHistory",
-        pipeline: [
-          {
-            $lookup: {
-              from: "users",
-              localField: "owner",
-              foreignField: "_id",
-              as: "owner",
-              pipeline: [
-                {
-                  $project: {
-                    fullName: 1,
-                    userName: 1,
-                    avatar: 1,
-                  },
-                },
-              ],
-            },
-          },
-          {
-            $addFields:{
-              owner:"$owner[0]"
-            }
-          }
-        ],
+        // pipeline: [
+        //   {
+        //     $lookup: {
+        //       from: "users",
+        //       localField: "owner",
+        //       foreignField: "_id",
+        //       as: "owner",
+        //       pipeline: [
+        //         {
+        //           $project: {
+        //             fullName: 1,
+        //             userName: 1,
+        //             avatar: 1,
+        //           },
+        //         },
+        //       ],
+        //     },
+        //   },
+        //   {
+        //     $addFields:{
+        //       owner:{ $arrayElemAt: ["$owner", 0] }
+
+        //     }
+        //   }
+        // ],
       },
     },
+    // {
+    //   $addFields:{
+    //     watchHistory:"$watchHistory"
+    //   }
+    // },
     {
       $project:{
         watchHistory:1
@@ -433,7 +446,7 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
     }
   ]);
 
-  return res.status(200).json(new ApiResponse(200,resData[0],"watch history get successfully"))
+  return res.status(200).json(new ApiResponse(200,resData,"watch history get successfully"))
 });
 
 export {
