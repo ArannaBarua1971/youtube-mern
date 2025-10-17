@@ -12,7 +12,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
   const videoStats = await Video.aggregate([
     {
       $match: {
-        owner: mongoose.Types.ObjectId(req.user_id),
+        owner: req.user._id,
       },
     },
     {
@@ -73,7 +73,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
     channel: req.user._id,
   });
 
-  if (!videoStats || !tweetStats || !totalSubscriber) {
+  if (!videoStats || !tweetStats ) {
     throw new ApiError(500, "failed to get data");
   }
 
@@ -83,7 +83,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
       {
         videoStats: videoStats[0],
         tweetStats: tweetStats[0],
-        totalSubscriber: totalSubscriber[0],
+        totalSubscriber: totalSubscriber,
       },
       "all data get successfully"
     )
@@ -92,7 +92,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
 
 const getChannelVideos = asyncHandler(async (req, res) => {
     
-   const { page = 1, limit = 10, query, sortBy, sortType } = req.query;
+  const { page = 1, limit = 10, query, sortBy="title", sortType="asc" } = req.query;
 
   let filter = {owner:req.user._id};
   let sortQurey;
@@ -138,12 +138,12 @@ const getChannelVideos = asyncHandler(async (req, res) => {
   const totalVideo = await Video.countDocuments(filter);
 
   return (
-    res.status(200),
+    res.status(200).
     json(
       new ApiResponse(
         200,
         {
-          video:videoData[0],
+          video:videoData,
           currentPage: Number(page),
           totalPages: Math.ceil(totalVideo / Number(limit)),
         },

@@ -407,38 +407,38 @@ const getUserWatchHistory = asyncHandler(async (req, res) => {
         localField: "watchHistory",
         foreignField: "_id",
         as: "watchHistory",
-        // pipeline: [
-        //   {
-        //     $lookup: {
-        //       from: "users",
-        //       localField: "owner",
-        //       foreignField: "_id",
-        //       as: "owner",
-        //       pipeline: [
-        //         {
-        //           $project: {
-        //             fullName: 1,
-        //             userName: 1,
-        //             avatar: 1,
-        //           },
-        //         },
-        //       ],
-        //     },
-        //   },
-        //   {
-        //     $addFields:{
-        //       owner:{ $arrayElemAt: ["$owner", 0] }
+        pipeline: [
+          {
+            $lookup: {
+              from: "users",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullName: 1,
+                    userName: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields:{
+              owner:{ $arrayElemAt: ["$owner", 0] }
 
-        //     }
-        //   }
-        // ],
+            }
+          }
+        ],
       },
     },
-    // {
-    //   $addFields:{
-    //     watchHistory:"$watchHistory"
-    //   }
-    // },
+    {
+      $addFields:{
+        watchHistory:"$watchHistory"
+      }
+    },
     {
       $project:{
         watchHistory:1
